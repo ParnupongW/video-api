@@ -33,6 +33,24 @@ def save_videos():
 videos = load_videos()
 
 
+@app.delete("/videos/{video_id}")
+def delete_video(video_id: int):
+    for v in videos:
+        if v["id"] == video_id:
+            videos.remove(v)
+            save_videos()
+            return v
+    raise HTTPException(status_code=404, detail="ไม่พบวิดีโอ")
+
+@app.put("/videos/{video_id}")
+def put_video(video: VideoIn, video_id: int):
+    for v in videos:
+        if v["id"] == video_id:
+            v.update(video.model_dump())
+            save_videos()
+            return v
+    raise HTTPException(status_code=404, detail="ไม่พบวิดีโอ")
+    
 @app.get("/")
 def home():
     return {"message": "สวัสดีครับ API ทำงานแล้ว"}
