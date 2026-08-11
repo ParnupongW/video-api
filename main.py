@@ -1,19 +1,36 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+import csv
+import datetime
 
 app = FastAPI(title="Video Analytics API")
 
-videos = [
-    {"id": 1, "title": "บักคองไปตลาด", "views": 120000, "likes": 15000},
-    {"id": 2, "title": "รีวิวหูฟัง", "views": 8000, "likes": 320},
-    {"id": 3, "title": "บักคองสอนทำอาหาร", "views": 450000, "likes": 62000},
-]
+
 
 # ── ส่วนที่ 1: ประกาศหน้าตาข้อมูลที่จะรับ ──
 class VideoIn(BaseModel):
     title: str
     views: int
     likes: int
+
+def load_videos():
+    rows =[]
+    with open("data.csv", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for i,row in enumerate(reader, start=1):
+            row["id"] = i
+            row["views"] = int(row["views"])
+            row["likes"] = int(row["likes"])
+            rows.append(row)
+    return rows
+
+def save_videos():
+    with open("data.csv", "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["id", "title", "views", "likes", "date"])
+        writer.writeheader()
+        writer.writerows(videos)
+
+videos = load_videos()
 
 
 @app.get("/")
@@ -38,6 +55,8 @@ def create_video(video: VideoIn):
     new_id = max([v["id"] for v in videos]) + 1
     new_video = {"id": new_id, **video.model_dump()}
     videos.append(new_video)
+    datetime.date.today()
+    save_videos()
     return new_video
 
 # ── ส่วนที่ 3: คำนวณ engagement (ของถนัดอยู่แล้ว) ──
@@ -48,3 +67,4 @@ def get_engagement(video_id: int):
             rate = (v["likes"] / v["views"]) * 100
             return {"title": v["title"], "engagement_rate": round(rate, 2)}
     raise HTTPException(status_code=404, detail="ไม่พบวิดีโอ")
+
