@@ -2,10 +2,14 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import csv
 import datetime
+import sqlite3
 
 app = FastAPI(title="Video Analytics API")
 
 
+con = sqlite3.connect("videos.db", check_same_thread=False)
+con.row_factory = sqlite3.Row
+cur = con.cursor()
 
 # ── ส่วนที่ 1: ประกาศหน้าตาข้อมูลที่จะรับ ──
 class VideoIn(BaseModel):
@@ -14,15 +18,9 @@ class VideoIn(BaseModel):
     likes: int
 
 def load_videos():
-    rows =[]
-    with open("data.csv", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for i,row in enumerate(reader, start=1):
-            row["id"] = i
-            row["views"] = int(row["views"])
-            row["likes"] = int(row["likes"])
-            rows.append(row)
-    return rows
+    cur.execute("SELECT * FROM videos")
+    rows = cur.fetchall()
+    return [dict(row) for row in rows]
 
 def save_videos():
     with open("data.csv", "w", encoding="utf-8", newline="") as f:
@@ -30,26 +28,23 @@ def save_videos():
         writer.writeheader()
         writer.writerows(videos)
 
-videos = load_videos()
-
 
 @app.delete("/videos/{video_id}")
-def delete_video(video_id: int):
-    for v in videos:
-        if v["id"] == video_id:
-            videos.remove(v)
-            save_videos()
-            return v
-    raise HTTPException(status_code=404, detail="ไม่พบวิดีโอ")
+def delete_video(video_id: int):       
+    cur.execute("DELETE FROM videos WHERE id = ?", (video_id,))
+    con.commit()
+    if cur.rowcount == 0:
+        raise HTTPException(status_code=404, detail="ไม่พบวิดีโอ")
+    return {"message": "ลบแล้ว"}
 
 @app.put("/videos/{video_id}")
-def put_video(video: VideoIn, video_id: int):
-    for v in videos:
-        if v["id"] == video_id:
-            v.update(video.model_dump())
-            save_videos()
-            return v
-    raise HTTPException(status_code=404, detail="ไม่พบวิดีโอ")
+def put_video(video: VideoIn, video_id: int):   
+    cur.execute("UPDATE videos SET title = ?, views = ?, likes = ? WHERE id = ?", (video.title, video.views, video.likes, video_id))
+    con.commit()
+    if cur.rowcount == 0:
+        raise HTTPException(status_code=404, detail="ไม่พบวิดีโอ")
+    return {"message": "แก้ไขแล้ว"}
+    
     
 @app.get("/")
 def home():
@@ -57,6 +52,7 @@ def home():
 
 @app.get("/videos/{video_id}")
 def get_video(video_id: int):
+    videos = load_videos()
     for v in videos:
         if v["id"] == video_id:
             return v
@@ -64,22 +60,21 @@ def get_video(video_id: int):
 
 @app.get("/videos")
 def list_videos(min_views: int = 0):
+    videos = load_videos()
     result = [v for v in videos if v["views"] >= min_views]
     return {"count": len(result), "videos": result}
 
 # ── ส่วนที่ 2: POST — เพิ่มวิดีโอใหม่ ──
 @app.post("/videos", status_code=201)
 def create_video(video: VideoIn):
-    new_id = max([v["id"] for v in videos]) + 1
-    new_video = {"id": new_id, **video.model_dump()}
-    videos.append(new_video)
-    datetime.date.today()
-    save_videos()
-    return new_video
+    cur.execute("INSERT INTO videos (title, views, likes) VALUES (?, ?, ?)", (video.title, video.views, video.likes))
+    con.commit()
+    return {"message": "เพิ่มข้อมูลเรียบร้อย", "id": cur.lastrowid}
 
 # ── ส่วนที่ 3: คำนวณ engagement (ของถนัดอยู่แล้ว) ──
 @app.get("/videos/{video_id}/engagement")
 def get_engagement(video_id: int):
+    videos = load_videos()
     for v in videos:
         if v["id"] == video_id:
             rate = (v["likes"] / v["views"]) * 100
