@@ -1,0 +1,1 @@
+postgresql://video_db_e6jh_user:2jswAKZWBqVaBmUwPURBhB84yQm64VrO@dpg-d9u37uflk1mc73ffvorg-a.oregon-postgres.render.com/video_db_e6jh

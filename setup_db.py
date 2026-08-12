@@ -1,9 +1,19 @@
-import sqlite3
+import os
 import csv
+import psycopg
+from dotenv import load_dotenv
 
-con = sqlite3.connect("videos.db")
+load_dotenv()
+con = psycopg.connect(os.getenv("DATABASE_URL"))
 cur = con.cursor()
-cur.execute("CREATE TABLE IF NOT EXISTS videos (id INTEGER PRIMARY KEY, title TEXT, views INTEGER, likes INTEGER, date DATE)")
+cur.execute("DROP TABLE IF EXISTS videos")
+cur.execute("""CREATE TABLE IF NOT EXISTS videos (
+    id SERIAL PRIMARY KEY,
+    title TEXT,
+    views INTEGER,
+    likes INTEGER,
+    date DATE
+)""")
 
 # อ่าน CSV เอง ไม่พึ่ง main.py
 rows = []
@@ -17,7 +27,7 @@ with open("data.csv", encoding="utf-8") as f:
 
 for v in rows:
     cur.execute(
-        "INSERT INTO videos (title, views, likes, date) VALUES (?, ?, ?, ?)",
+        "INSERT INTO videos (title, views, likes, date) VALUES (%s, %s, %s, %s)",
         (v["title"], v["views"], v["likes"], v["date"])
     )
 

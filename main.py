@@ -1,14 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import csv
-import datetime
-import sqlite3
+import os
+import psycopg
+from psycopg.rows import dict_row
+from dotenv import load_dotenv
 
 app = FastAPI(title="Video Analytics API")
 
-
-con = sqlite3.connect("videos.db", check_same_thread=False)
-con.row_factory = sqlite3.Row
+load_dotenv()
+con = psycopg.connect(os.getenv("DATABASE_URL"), row_factory=dict_row)
 cur = con.cursor()
 
 # ── ส่วนที่ 1: ประกาศหน้าตาข้อมูลที่จะรับ ──
@@ -31,7 +31,7 @@ def save_videos():
 
 @app.delete("/videos/{video_id}")
 def delete_video(video_id: int):       
-    cur.execute("DELETE FROM videos WHERE id = ?", (video_id,))
+    cur.execute("DELETE FROM videos WHERE id = %s", (video_id,))
     con.commit()
     if cur.rowcount == 0:
         raise HTTPException(status_code=404, detail="ไม่พบวิดีโอ")
@@ -39,7 +39,7 @@ def delete_video(video_id: int):
 
 @app.put("/videos/{video_id}")
 def put_video(video: VideoIn, video_id: int):   
-    cur.execute("UPDATE videos SET title = ?, views = ?, likes = ? WHERE id = ?", (video.title, video.views, video.likes, video_id))
+    cur.execute("UPDATE videos SET title = %s, views = %s, likes = %s WHERE id = %s", (video.title, video.views, video.likes, video_id))
     con.commit()
     if cur.rowcount == 0:
         raise HTTPException(status_code=404, detail="ไม่พบวิดีโอ")
@@ -67,9 +67,10 @@ def list_videos(min_views: int = 0):
 # ── ส่วนที่ 2: POST — เพิ่มวิดีโอใหม่ ──
 @app.post("/videos", status_code=201)
 def create_video(video: VideoIn):
-    cur.execute("INSERT INTO videos (title, views, likes) VALUES (?, ?, ?)", (video.title, video.views, video.likes))
+    cur.execute("INSERT INTO videos (title, views, likes) VALUES (%s, %s, %s) RETURNING id", (video.title, video.views, video.likes))
     con.commit()
-    return {"message": "เพิ่มข้อมูลเรียบร้อย", "id": cur.lastrowid}
+    new_id = cur.fetchone()["id"]
+    return {"message": "เพิ่มข้อมูลเรียบร้อย", "id": new_id}
 
 # ── ส่วนที่ 3: คำนวณ engagement (ของถนัดอยู่แล้ว) ──
 @app.get("/videos/{video_id}/engagement")
