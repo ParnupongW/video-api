@@ -13,6 +13,7 @@ REST API สำหรับจัดการข้อมูลสถิติ�
 - **PostgreSQL** — ฐานข้อมูล (เชื่อมต่อผ่าน psycopg)
 - **Pydantic** — validation อัตโนมัติ
 - **Render** — hosting
+- **JWT (python-jose) + passlib** — authentication
 
 ---
 
@@ -30,6 +31,17 @@ REST API สำหรับจัดการข้อมูลสถิติ�
 ทุก endpoint มี validation และ status code ตามมาตรฐาน REST (200 / 201 / 404 / 422)
 
 ---
+## Authentication
+
+ใช้ JWT token — รหัสผ่านเก็บเป็น bcrypt hash
+
+| Method | Path | คำอธิบาย |
+|---|---|---|
+| POST | `/register` | สมัครสมาชิก |
+| POST | `/login` | ล็อกอิน รับ access token |
+
+`GET` เรียกได้โดยไม่ต้องมี token  
+`POST` / `PUT` / `DELETE` ต้องแนบ token ใน header
 
 ## การติดตั้ง
 
@@ -44,6 +56,7 @@ pip install -r requirements.txt
 
 ```bash
 python setup_db.py
+python setup_users.py
 ```
 
 รันเซิร์ฟเวอร์:
