@@ -10,16 +10,16 @@ from datetime import datetime, timedelta
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = "HS256"
-
 app = FastAPI(title="Video Analytics API")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 load_dotenv()
 con = psycopg.connect(os.getenv("DATABASE_URL"), row_factory=dict_row)
 cur = con.cursor()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = "HS256"
 
 # ── ส่วนที่ 1: ประกาศหน้าตาข้อมูลที่จะรับ ──
 class VideoIn(BaseModel):
